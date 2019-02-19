@@ -40,7 +40,8 @@ logging.getLogger('tensorflow').handlers = handlers
 
 def parse_fn(row, dim):
     target = [0, 0]
-    target[int(row['target'])] = 1
+    if 'target' in row:
+        target[int(row['target'])] = 1
     source = []
     for mul in range(0, 200//dim):
         source_row = []
@@ -99,10 +100,10 @@ def model_fn(features, labels, mode, params):
             correct_prediction = tf.equal(tf.argmax(prediction, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             metrics = {
-                'acc': accuracy,
+                'acc': tf.metrics.accuracy(labels, prediction),
             }
             for metric_name, op in metrics.items():
-                tf.summary.scalar(metric_name, op)
+                tf.summary.scalar(metric_name, op[1])
             return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
         elif mode == tf.estimator.ModeKeys.TRAIN:
             optimizer = tf.train.AdamOptimizer(learning_rate=params.get('lr', .001))
@@ -151,10 +152,16 @@ if __name__ == '__main__':
         test_inpf = functools.partial(input_fn, path)
         golds_gen = generator_fn(path, params['dim'])
         preds_gen = estimator.predict(test_inpf)
+        err = 0
+        alls = 0
         for golds, preds in zip(golds_gen, preds_gen):
             ((_, _), (target)) = golds
-            print(preds)
-            print(target)
+            alls += 1
+            if np.argmax(preds['pred']) != np.argmax(target):
+                err += 1
+        print('alls: ', alls)
+        print('errs: ', err)
+        print('acc: ', 1. - (float(err) / alls))
 
     for name in ['test', 'dev']:
         write_predictions(name)
