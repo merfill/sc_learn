@@ -6,11 +6,11 @@ import csv
 import numpy as np
 import tensorflow as tf
 
-from rnn_classification import model_fn, input_fn
+from cnn import model_fn, input_fn, generator_fn
 
 DATADIR = './data'
-PARAMS = './results/params.json'
-MODELDIR = './results/model'
+PARAMS = './cnn_results/params.json'
+MODELDIR = './cnn_results/model'
 
 
 if __name__ == '__main__':
@@ -22,13 +22,10 @@ if __name__ == '__main__':
     print('\n\n------------- start prediction on {}...\n'.format(path))
     test_inpf = functools.partial(input_fn, path)
     preds_gen = estimator.predict(test_inpf)
-    res = []
-    for preds in preds_gen:
-        res += [np.argmax(preds['pred'])]
 
     with open(path, 'rb') as f, open('submission.csv', 'w') as ff:
         reader = csv.DictReader(f, delimiter=',', quotechar='"')
-        ff.write('ID_code,target')
-        for row, r in zip(reader, res):
-            ff.write('{},{}\n'.format(row['ID_code'], r))
+        ff.write('ID_code,target\n')
+        for row, preds in zip(reader, preds_gen):
+            ff.write('{},{}\n'.format(row['ID_code'], preds['classes']))
 

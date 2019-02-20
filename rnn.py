@@ -14,7 +14,7 @@ import tensorflow as tf
 
 
 DATADIR = './data'
-RESULTSDIR = './results'
+RESULTSDIR = './rnn_results'
 
 
 def mkdir(path):
@@ -39,15 +39,12 @@ logging.getLogger('tensorflow').handlers = handlers
 
 
 def parse_fn(row, dim):
-    target = [0, 0]
+    target = 0
     if 'target' in row:
-        target[int(row['target'])] = 1
+        target = int(row['target'])
     source = []
-    for mul in range(0, 200//dim):
-        source_row = []
-        for idx in range(0, dim):
-            source_row += [float(row['var_' + str(idx*mul)])]
-        source += [source_row]
+    for idx in range(0, 200):
+        source += [float(row['var_' + str(idx)])]
     return (source, len(source)), (target)
 
 
@@ -59,7 +56,7 @@ def generator_fn(data_file, dim):
 
 
 def input_fn(data_file, params):
-    shapes = (([None, params['dim']], ()), ([2]))
+    shapes = (([None], ()), ())
     types = ((tf.float32, tf.int32), (tf.int32))
     defaults = ((0., 0), (0))
 
@@ -69,13 +66,15 @@ def input_fn(data_file, params):
 
 def model_fn(features, labels, mode, params):
     # Read vocabs and inputs
-    dropout = params['dropout']
-    source, source_length = features
+    _source, _ = features
+    source = tf.reshape(_source, [-1, 40, 5])
+    batch_size = tf.shape(source)[0]
+    source_length = tf.fill([batch_size], 40)
 
     # --- RNN ---
 
-    cell_fw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(params['dim']) for _ in range(params['layers'])])
-    cell_bw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(params['dim']) for _ in range(params['layers'])])
+    cell_fw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(256) for _ in range(params['layers'])])
+    cell_bw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(256) for _ in range(params['layers'])])
     _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, source, sequence_length=source_length, dtype=tf.float32)
 
     # concatenate states and produce projection level
@@ -84,50 +83,37 @@ def model_fn(features, labels, mode, params):
     for fw, bw in zip(state_fw, state_bw):
         cells += [tf.concat([fw, bw], axis=-1)]
     dense_layer = tf.layers.dense(tf.concat(cells, axis=-1), 256)
-    logit = tf.layers.dense(dense_layer, 2)
+    logits = tf.layers.dense(dense_layer, 2)
 
-    prediction = tf.nn.softmax(logit)
+    predictions = {
+        "classes": tf.argmax(input=logits, axis=1),
+        "probs": tf.nn.softmax(logits, name="softmax_tensor")
+    }
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        predictions = {
-            'pred': prediction,
-        }
-        return tf.estimator.EstimatorSpec(mode, predictions=predictions)
-    else:
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logit, labels=labels))
+        return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
 
-        if mode == tf.estimator.ModeKeys.EVAL:
-            correct_prediction = tf.equal(tf.argmax(prediction, 1), tf.argmax(labels, 1))
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            metrics = {
-                'acc': tf.metrics.accuracy(labels, prediction),
-            }
-            for metric_name, op in metrics.items():
-                tf.summary.scalar(metric_name, op[1])
-            return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
-        elif mode == tf.estimator.ModeKeys.TRAIN:
-            optimizer = tf.train.AdamOptimizer(learning_rate=params.get('lr', .001))
-            grads, vs = zip(*optimizer.compute_gradients(loss))
-            grads, gnorm  = tf.clip_by_global_norm(grads, params.get('clip', .5))
-            train_op = optimizer.apply_gradients(zip(grads, vs), global_step=tf.train.get_or_create_global_step())
-            return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
+    loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        optimizer = tf.train.AdamOptimizer(learning_rate=params.get('lr', .001))
+        train_op = optimizer.minimize(loss=loss, global_step=tf.train.get_global_step())
+        return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+
+    eval_metric_ops = {
+        "acc": tf.metrics.accuracy(labels=labels, predictions=predictions["classes"])
+    }
+    return tf.estimator.EstimatorSpec(mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
 
 if __name__ == '__main__':
     # Params
     params = {
-        'dim': 10,
+        'dim': 128,
         'lr': .001,
-        'clip': .5,
-        'embedding_size': 100,
-        'max_iters': 50,
-        'dropout': 0.5,
-        'layers': 3,
-        'num_oov_buckets': 3,
+        'layers': 5,
         'epochs': 1,
-        'batch_size': 50,
-        'source_vocab_file': os.path.join(DATADIR, 'vocab.source.txt'),
-        'target_vocab_file': os.path.join(DATADIR, 'vocab.target.txt'),
+        'batch_size': 100,
     }
     with open('{}/params.json'.format(RESULTSDIR), 'w') as f:
         json.dump(params, f, indent=4, sort_keys=True)
@@ -157,7 +143,7 @@ if __name__ == '__main__':
         for golds, preds in zip(golds_gen, preds_gen):
             ((_, _), (target)) = golds
             alls += 1
-            if np.argmax(preds['pred']) != np.argmax(target):
+            if preds['classes'] != target:
                 err += 1
         print('alls: ', alls)
         print('errs: ', err)
