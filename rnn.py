@@ -149,6 +149,6 @@ if __name__ == '__main__':
         print('errs: ', err)
         print('acc: ', 1. - (float(err) / alls))
 
-    for name in ['test', 'dev']:
+    for name in ['dev']:
         write_predictions(name)
 
