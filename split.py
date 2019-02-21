@@ -1,14 +1,12 @@
 
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 df = pd.read_csv('data/train_normalized.csv', sep=',', encoding='utf8')
 
-l = df.shape[0]
-tens = int(l * .1)
+train, dev = train_test_split(df)
 
-train = df[ : (l - tens)]
-dev = df[(l - tens) : ]
-
+print df.shape[0]
 print train.shape[0]
 print dev.shape[0]
 

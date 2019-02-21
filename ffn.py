@@ -14,7 +14,7 @@ import tensorflow as tf
 
 
 DATADIR = './data'
-RESULTSDIR = './rnn_results'
+RESULTSDIR = './ffn_results'
 
 
 def mkdir(path):
@@ -66,32 +66,21 @@ def input_fn(data_file, params):
 
 def model_fn(features, labels, mode, params):
     # Read vocabs and inputs
-    _source, _ = features
-    source = tf.reshape(_source, [-1, 200, 1])
-    batch_size = tf.shape(source)[0]
-    source_length = tf.fill([batch_size], 200)
+    _inputs, _ = features
+    inputs = tf.reshape(_inputs, [-1, 200])
+    batch_size = tf.shape(inputs)[0]
 
-    d1 = tf.layers.dense(source, params['dense_dim'])
-    d2 = tf.layers.dense(d1, params['dense_dim'] * 2)
-    d3 = tf.layers.dense(d2, params['dense_dim'])
-
-    # --- RNN ---
-
-    cell_fw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(params['dim']) for _ in range(params['layers'])])
-    cell_bw = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.GRUCell(params['dim']) for _ in range(params['layers'])])
-    _, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, d3, sequence_length=source_length, dtype=tf.float32)
-
-    # concatenate states and produce projection level
-    state_fw, state_bw = states
-    cells = []
-    for fw, bw in zip(state_fw, state_bw):
-        cells += [tf.concat([fw, bw], axis=-1)]
-    dense_layer_1 = tf.layers.dense(tf.concat(cells, axis=-1), params['dense_dim'])
-    dense_layer_2 = tf.layers.dense(dense_layer_1, params['dense_dim'] * 2)
+    dense_layer_1 = tf.layers.dense(inputs, params['dense_dim'])
+    dropout1 = tf.layers.dropout(inputs=dense_layer_1, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+    dense_layer_2 = tf.layers.dense(dropout1, params['dense_dim'] * 2)
+    dropout2 = tf.layers.dropout(inputs=dense_layer_2, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
     dense_layer_3 = tf.layers.dense(dense_layer_2, params['dense_dim'] * 3)
+    dropout3 = tf.layers.dropout(inputs=dense_layer_3, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
     dense_layer_4 = tf.layers.dense(dense_layer_3, params['dense_dim'] * 2)
+    dropout4 = tf.layers.dropout(inputs=dense_layer_4, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
     dense_layer_5 = tf.layers.dense(dense_layer_3, params['dense_dim'])
-    logits = tf.layers.dense(dense_layer_5, 2)
+    dropout5 = tf.layers.dropout(inputs=dense_layer_5, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+    logits = tf.layers.dense(dropout5, 2)
 
     predictions = {
         "classes": tf.argmax(input=logits, axis=1),
@@ -118,7 +107,7 @@ if __name__ == '__main__':
     # Params
     params = {
         'dim': 128,
-        'dense_dim': 128,
+        'dense_dim': 512,
         'lr': .001,
         'layers': 5,
         'epochs': 1,

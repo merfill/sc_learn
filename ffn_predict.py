@@ -6,11 +6,11 @@ import csv
 import numpy as np
 import tensorflow as tf
 
-from rnn import model_fn, input_fn
+from ffn import model_fn, input_fn
 
 DATADIR = './data'
-PARAMS = './rnn_results/params.json'
-MODELDIR = './rnn_results/model'
+PARAMS = './ffn_results/params.json'
+MODELDIR = './ffn_results/model'
 
 
 if __name__ == '__main__':
