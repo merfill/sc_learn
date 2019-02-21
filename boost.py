@@ -57,14 +57,13 @@ for i, (train_index, test_index) in enumerate(skf.split(train, y)):
 
     xgb_gbm = xgb.XGBClassifier(max_depth=15, n_estimators=MAX_ROUNDS, learning_rate=0.06)
     eval_set=[(X_train, y_train), (X_valid, y_valid)]
-    xgb_gbm.fit(X_train, y_train, eval_set=eval_set, early_stopping_rounds=50, eval_metric="logloss", verbose=True)
+    xgb_gbm.fit(X_train, y_train, eval_set=eval_set, early_stopping_rounds=50, eval_metric='error', verbose=True)
     print 'Best iteration xgboost_gbm = ', xgb_gbm.get_booster().best_iteration
 
     # Storing and reporting results of the fold
     xgb_gbm_iter1 = np.append(xgb_gbm_iter1, xgb_gbm.get_booster().best_iteration)
 
     pred  = xgb_gbm.predict(X_valid)
-    #ap = average_precision_score(y_valid, pred, average='macro', pos_label=1, sample_weight=None)
     ap = accuracy_score(y_valid, pred)
     print 'xgboost ', ap
     xgb_gbm_ap1 = np.append(xgb_gbm_ap1, ap)
