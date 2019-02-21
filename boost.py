@@ -7,7 +7,7 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import xgboost as xgb
 
 # Scikit-learn
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import average_precision_score, accuracy_score
 from sklearn.model_selection import StratifiedKFold 
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.ensemble import GradientBoostingClassifier
@@ -26,7 +26,7 @@ print(y_bin.shape)
 
 skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=8)
 
-MAX_ROUNDS = 5000
+MAX_ROUNDS = 3000
 sklearn_gbm_iter1 = []
 xgb_gbm_iter1 = []
 
@@ -55,40 +55,19 @@ for i, (train_index, test_index) in enumerate(skf.split(train, y)):
 
     print '\nFold ', i
 
-    # Running models for this fold
-
-    # ->Scikit-learn GBM
-    #sklearn_gbm = GradientBoostingClassifier(n_estimators=MAX_ROUNDS,
-    #                                learning_rate = 0.06,
-    #                                max_features=2, 
-    #                                max_depth = 6, 
-    #                                n_iter_no_change=50, 
-    #                                tol=0.01,
-    #                                random_state = 0)
-
-    #sklearn_gbm.fit(X_train, y_train)
-    #print( " Best iteration sklearn_gbm = ", sklearn_gbm.n_estimators_)
-
-    xgb_gbm = xgb.XGBClassifier(max_depth=6, 
-                                n_estimators=MAX_ROUNDS,
-                                eval_set=[(X_train, y_train), (X_valid, y_valid)],
-                                learning_rate=0.06,
-                                early_stopping_rounds=50)
-
-    xgb_gbm.fit(X_train, y_train)
+    xgb_gbm = xgb.XGBClassifier(max_depth=15, n_estimators=MAX_ROUNDS, learning_rate=0.06)
+    eval_set=[(X_train, y_train), (X_valid, y_valid)]
+    xgb_gbm.fit(X_train, y_train, eval_set=eval_set, early_stopping_rounds=50, eval_metric="logloss", verbose=True)
     print 'Best iteration xgboost_gbm = ', xgb_gbm.get_booster().best_iteration
 
     # Storing and reporting results of the fold
-    #sklearn_gbm_iter1 = np.append(sklearn_gbm_iter1, sklearn_gbm.n_estimators_)
     xgb_gbm_iter1 = np.append(xgb_gbm_iter1, xgb_gbm.get_booster().best_iteration)
 
-    #pred = sklearn_gbm.predict(X_valid)
-    #ap = average_precision_score(y_valid, pred, average='macro', pos_label=1, sample_weight=None)
-    #print('sklearn_gbn ', ap)
-    #sklearn_gbm_ap1 = np.append(sklearn_gbm_ap1, ap)
-
     pred  = xgb_gbm.predict(X_valid)
-    ap = average_precision_score(y_valid, pred, average='macro', pos_label=1, sample_weight=None)
+    #ap = average_precision_score(y_valid, pred, average='macro', pos_label=1, sample_weight=None)
+    ap = accuracy_score(y_valid, pred)
     print 'xgboost ', ap
     xgb_gbm_ap1 = np.append(xgb_gbm_ap1, ap)
+
+    xgb_gbm.save_model('model_{}.xgb'.format(i))
 
