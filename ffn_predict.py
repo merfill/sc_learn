@@ -18,7 +18,7 @@ if __name__ == '__main__':
         params = json.load(f)
 
     estimator = tf.estimator.Estimator(model_fn, MODELDIR, params=params)
-    path = os.path.join(DATADIR, '{}.csv'.format('test_normalized'))
+    path = os.path.join(DATADIR, '{}.csv'.format('test_data'))
     print('\n\n------------- start prediction on {}...\n'.format(path))
     test_inpf = functools.partial(input_fn, path)
     preds_gen = estimator.predict(test_inpf)
