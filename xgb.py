@@ -63,7 +63,7 @@ for i, (train_index, test_index) in enumerate(skf.split(train, y)):
     # Storing and reporting results of the fold
     xgb_gbm_iter1 = np.append(xgb_gbm_iter1, xgb_gbm.get_booster().best_iteration)
 
-    pred  = xgb_gbm.predict(X_valid)
+    pred = xgb_gbm.predict(X_valid)
     ap = accuracy_score(y_valid, pred)
     print 'xgboost ', ap
     xgb_gbm_ap1 = np.append(xgb_gbm_ap1, ap)

@@ -106,11 +106,11 @@ def model_fn(features, labels, mode, params):
 if __name__ == '__main__':
     # Params
     params = {
-        'dim': 128,
-        'dense_dim': 512,
+        'dim': 512,
+        'dense_dim': 1024,
         'lr': .001,
         'layers': 5,
-        'epochs': 1,
+        'epochs': 5,
         'batch_size': 20,
     }
     with open('{}/params.json'.format(RESULTSDIR), 'w') as f:

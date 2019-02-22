@@ -2,10 +2,10 @@
 import pandas as pd
 from sklearn import preprocessing
 
-prefix = 'train'
-work_on_target = True
+prefix = 'test'
+work_on_target = False
 
-data = pd.read_csv('data/{}_data_cut.csv'.format(prefix), sep=',', encoding='utf8')
+data = pd.read_csv('data/{}_data.csv'.format(prefix), sep=',', encoding='utf8')
 print data.head(3)
 d = data.drop(['ID_code'], axis=1)
 if work_on_target:
