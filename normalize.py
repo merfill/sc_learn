@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn import preprocessing
 
 # prepare train data
-train = pd.read_csv('data/train_data_cut.csv', sep=',', encoding='utf8')
+train = pd.read_csv('data/train_data.csv', sep=',', encoding='utf8')
 c_train = train.drop(['ID_code'], axis=1)
 c_train = c_train.drop(['target'], axis=1)
 x_train = c_train.values

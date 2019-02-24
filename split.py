@@ -2,7 +2,7 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-df = pd.read_csv('data/train_data_cut.csv', sep=',', encoding='utf8')
+df = pd.read_csv('data/train_normalized_9.csv', sep=',', encoding='utf8')
 
 train, dev = train_test_split(df)
 

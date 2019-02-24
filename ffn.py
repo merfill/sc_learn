@@ -82,7 +82,8 @@ def model_fn(features, labels, mode, params):
     dense_layer_5 = tf.layers.dense(dropout4, 784, activation=tf.nn.relu)
     dropout5 = tf.layers.dropout(inputs=dense_layer_5, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
 
-    cnn_input = tf.reshape(dropout5, [-1, 28, 28, 1])
+    fnn_output = tf.reshape(dropout5, [-1, 28, 28, 1])
+    cnn_input = tf.layers.batch_normalization(fnn_output, training=mode == tf.estimator.ModeKeys.TRAIN)
 
     conv1 = tf.layers.conv2d(inputs=cnn_input, filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
     pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
@@ -94,7 +95,7 @@ def model_fn(features, labels, mode, params):
     dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
     dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
 
-    logits = tf.layers.dense(dropout5, 2)
+    logits = tf.layers.dense(dropout, 2)
 
     predictions = {
         "classes": tf.argmax(input=logits, axis=1),
@@ -142,7 +143,7 @@ if __name__ == '__main__':
     cfg = tf.estimator.RunConfig(save_checkpoints_secs=120)
     estimator = tf.estimator.Estimator(model_fn, RESULTSDIR + '/model', cfg, params)
     mkdir(estimator.eval_dir())
-    hook = tf.contrib.estimator.stop_if_no_increase_hook(estimator, 'acc', 1000, min_steps=20000, run_every_secs=300)
+    hook = tf.contrib.estimator.stop_if_no_increase_hook(estimator, 'acc', 3000, min_steps=20000, run_every_secs=300)
     train_spec = tf.estimator.TrainSpec(input_fn=train_inpf, hooks=[hook])
     eval_spec = tf.estimator.EvalSpec(input_fn=eval_inpf, throttle_secs=120)
     tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)

@@ -90,6 +90,7 @@ def model_fn(features, labels, mode, params):
     for fw, bw in zip(state_fw, state_bw):
         cells += [tf.concat([fw, bw], axis=-1)]
 
+    rnn_output = tf.layers.batch_normalization(tf.concat(cells, axis=-1), training=mode == tf.estimator.ModeKeys.TRAIN)
     dense_layer_1 = tf.layers.dense(tf.concat(cells, axis=-1), params['dense_dim'])
     dropout1 = tf.layers.dropout(inputs=dense_layer_1, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
     dense_layer_2 = tf.layers.dense(dropout1, params['dense_dim'] * 2)
