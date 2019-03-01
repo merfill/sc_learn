@@ -14,7 +14,8 @@ c_test = test.drop(['ID_code'], axis=1)
 x_test = c_test.values
 
 #min_max_scaler = preprocessing.MinMaxScaler()
-scaler = preprocessing.StandardScaler().fit(x_train)
+#scaler = preprocessing.StandardScaler().fit(x_train)
+scaler = preprocessing.RobustScaler().fit(x_train)
 
 x_train_scaled = scaler.transform(x_train)
 x_test_scaled = scaler.transform(x_test)

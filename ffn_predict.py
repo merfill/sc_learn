@@ -23,7 +23,7 @@ if __name__ == '__main__':
     test_inpf = functools.partial(input_fn, path)
     preds_gen = estimator.predict(test_inpf)
 
-    with open(path, 'rb') as f, open('submission.csv', 'w') as ff:
+    with open(path, 'rb') as f, open('ffn_submission.csv', 'w') as ff:
         reader = csv.DictReader(f, delimiter=',', quotechar='"')
         ff.write('ID_code,target\n')
         for row, preds in zip(reader, preds_gen):

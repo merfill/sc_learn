@@ -71,20 +71,22 @@ def model_fn(features, labels, mode, params):
     inputs = tf.layers.batch_normalization(_inputs, training=mode == tf.estimator.ModeKeys.TRAIN)
     batch_size = tf.shape(inputs)[0]
 
-    dense_layer_1 = tf.layers.dense(inputs, params['dense_dim'], activation=tf.nn.relu)
-    dropout1 = tf.layers.dropout(inputs=dense_layer_1, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
-    dense_layer_2 = tf.layers.dense(dropout1, params['dense_dim'] * 2, activation=tf.nn.relu)
-    dropout2 = tf.layers.dropout(inputs=dense_layer_2, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
-    dense_layer_3 = tf.layers.dense(dropout2, params['dense_dim'] * 3, activation=tf.nn.relu)
-    dropout3 = tf.layers.dropout(inputs=dense_layer_3, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
-    dense_layer_4 = tf.layers.dense(dropout3, params['dense_dim'] * 2, activation=tf.nn.relu)
-    dropout4 = tf.layers.dropout(inputs=dense_layer_4, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
-    dense_layer_5 = tf.layers.dense(dropout4, 784, activation=tf.nn.relu)
-    dropout5 = tf.layers.dropout(inputs=dense_layer_5, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+    def add_dense_layer(inputs, shape, name, rate=.4):
+        W = tf.get_variable(name=name+'_W', shape=shape, initializer=tf.contrib.layers.xavier_initializer())
+        b = tf.get_variable(name=name+'_b', shape=[shape[-1]], initializer=tf.constant_initializer(0.1))
+        Z = tf.matmul(inputs, W) + b
+        Zt = tf.layers.batch_normalization(Z, training=mode == tf.estimator.ModeKeys.TRAIN)
+        A = tf.nn.relu(Zt)
+        return tf.layers.dropout(inputs=A, rate=rate, training=mode == tf.estimator.ModeKeys.TRAIN)
 
-    fnn_output = tf.reshape(dropout5, [-1, 28, 28, 1])
-    cnn_input = tf.layers.batch_normalization(fnn_output, training=mode == tf.estimator.ModeKeys.TRAIN)
+    dense_dim = params['dense_dim']
+    l1 = add_dense_layer(_inputs, [200, dense_dim], 'd1', .4)
+    l2 = add_dense_layer(l1, [dense_dim, dense_dim * 2], 'd2', .4)
+    l3 = add_dense_layer(l2, [dense_dim * 2, dense_dim * 3], 'd3', .4)
+    l4 = add_dense_layer(l3, [dense_dim * 3, dense_dim * 2], 'd4', .5)
+    l5 = add_dense_layer(l4, [dense_dim * 2, dense_dim], 'd5', .5)
 
+    cnn_input = tf.reshape(l5, [-1, 28, 28, 1])
     conv1 = tf.layers.conv2d(inputs=cnn_input, filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
     pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
     conv2 = tf.layers.conv2d(inputs=pool1, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
@@ -93,9 +95,9 @@ def model_fn(features, labels, mode, params):
     # dense layer
     pool2_flat = tf.reshape(pool2, [-1, 7 * 7 * 64])
     dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
-    dropout = tf.layers.dropout(inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+    dropout = tf.layers.dropout(inputs=dense, rate=0.5, training=mode == tf.estimator.ModeKeys.TRAIN)
 
-    logits = tf.layers.dense(dropout, 2)
+    logits = tf.layers.dense(dropout, 2, activation=tf.nn.sigmoid)
 
     predictions = {
         "classes": tf.argmax(input=logits, axis=1),
